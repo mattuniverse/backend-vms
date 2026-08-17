@@ -27,6 +27,10 @@ async def login(
     if not row["is_active"]:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Account disabled")
 
+    has_credential = await conn.fetchval(
+        "SELECT EXISTS(SELECT 1 FROM webauthn_credentials WHERE user_id=$1)", row["id"],
+    )
+
     pre_auth_token = create_pre_auth_token(str(row["id"]))
     await write_audit(conn, "Staff Login", actor={"id": row["id"], "name": row["name"]}, detail=f"Password step verified: {form.username}")
     return {"pre_auth_token": pre_auth_token, "registration_required": not has_credential}
