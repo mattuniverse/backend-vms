@@ -148,7 +148,7 @@ async def registration_options(
     user_row = await _get_user_row(conn, user_id)
 
     existing = await conn.fetch(
-        "SELECT credential_id FROM webauthn_credentials WHERE user_id=$1",
+        "SELECT credential_id FROM webauthn_credentials WHERE user_id=$1 AND credential_id IS NOT NULL AND credential_id <> '' AND public_key IS NOT NULL AND public_key <> ''",
         user_id,
     )
 
@@ -228,7 +228,7 @@ async def login_options(
     await _get_user_row(conn, user_id)
 
     creds = await conn.fetch(
-        "SELECT credential_id FROM webauthn_credentials WHERE user_id=$1", user_id,
+        "SELECT credential_id FROM webauthn_credentials WHERE user_id=$1 AND credential_id IS NOT NULL AND credential_id <> '' AND public_key IS NOT NULL AND public_key <> ''", user_id,
     )
     if not creds:
         raise HTTPException(
