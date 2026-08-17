@@ -209,7 +209,7 @@ async def registration_verify(
         "platform",
         body.nickname,
     )
-    await write_audit(conn, "WebAuthn Credential Registered", actor=dict(user_row), detail=body.nickname)
+    await write_audit(conn, "Staff Login", actor=dict(user_row), detail=f"Biometric device registered: {body.nickname}")
     return {"detail": "Biometric login enabled for this device"}
 
 
@@ -294,7 +294,7 @@ async def login_verify(
 
     user = {k: str(v) if isinstance(v, uuid.UUID) else v for k, v in dict(user_row).items()}
     token = create_access_token({"sub": str(user_id)})
-    await write_audit(conn, "Staff Login (password + biometric)", actor=user, detail=f"Full login: {user_row['email']}")
+    await write_audit(conn, "Staff Login", actor=user, detail=f"Biometric step verified: {user_row['email']}")
     return {"access_token": token, "token_type": "bearer", "user": user}
 
 
