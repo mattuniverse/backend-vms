@@ -28,7 +28,7 @@ async def login(
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Account disabled")
 
     pre_auth_token = create_pre_auth_token(str(row["id"]))
-    await write_audit(conn, "Staff Login (password step)", actor={"id": row["id"], "name": row["name"]}, detail=f"Password verified: {form.username}")
+    await write_audit(conn, "Staff Login", actor={"id": row["id"], "name": row["name"]}, detail=f"Password step verified: {form.username}")
     return {"pre_auth_token": pre_auth_token, "registration_required": not has_credential}
 
 
