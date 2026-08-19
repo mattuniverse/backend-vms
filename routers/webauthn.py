@@ -29,9 +29,12 @@ account still has to pass the password check before it can enroll a
 device. There is no way to reach the dashboard with only one factor.
 """
 
+import logging
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
+
+logger = logging.getLogger(__name__)
 
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -140,7 +143,9 @@ async def _pop_challenge(conn: asyncpg.Connection, user_id: uuid.UUID, purpose: 
 #    already know the password to enroll a new device.
 # -------------------------------------------------------------------------
 @router.post("/register/options")
+@limiter.limit("5/minute")
 async def registration_options(
+    request: Request,
     body: PreAuthIn,
     conn: asyncpg.Connection = Depends(get_conn),
 ):
@@ -176,7 +181,9 @@ async def registration_options(
 # 2. Registration verify — stores the public key returned by the device.
 # -------------------------------------------------------------------------
 @router.post("/register/verify")
+@limiter.limit("5/minute")
 async def registration_verify(
+    request: Request,
     body: RegistrationVerifyIn,
     conn: asyncpg.Connection = Depends(get_conn),
 ):
@@ -193,7 +200,8 @@ async def registration_verify(
             expected_rp_id=RP_ID,
             require_user_verification=True,
         )
-    except Exception:
+    except Exception as exc:
+        logger.exception("WebAuthn registration verify failed: %s", exc)
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Could not verify this device's response")
 
     await conn.execute(
@@ -284,7 +292,8 @@ async def login_verify(
             credential_current_sign_count=cred_row["sign_count"],
             require_user_verification=True,
         )
-    except Exception:
+    except Exception as exc:
+        logger.exception("WebAuthn authentication verify failed: %s", exc)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Could not verify this device's response")
 
     await conn.execute(
