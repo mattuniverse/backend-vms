@@ -202,6 +202,10 @@ async def check_out(
         "UPDATE visit_requests SET status='Checked Out', checked_out_at=NOW(), checked_out_by=$1 WHERE id=$2",
         uuid.UUID(str(current["id"])), request_id,
     )
+    # Mark the visit as completed — visitor has left the premises
+    # We do NOT change the visitor account status (Active/Blocked) on check-out
+    # because a visitor may have multiple future visits scheduled.
+    # The frontend derives a separate "presence" status from visit history.
     await write_audit(conn, "Checked Out", actor=current, visit_request_id=request_id,
                       visitor_name=row["visitor_name"])
     if row["visitor_email"]:
