@@ -36,7 +36,9 @@ async def list_requests(
 
 
 @router.post("", response_model=VisitRequestOut, status_code=201)
+@limiter.limit("3/minute")
 async def create_request(
+    request: Request,
     body: VisitRequestIn,
     conn: asyncpg.Connection = Depends(get_conn),
 ):
