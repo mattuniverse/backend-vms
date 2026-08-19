@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from database import create_pool, close_pool
-from routers import auth, visitors, visit_requests, audit, analytics, webauthn
+from routers import auth, visitors, visit_requests, audit, analytics, webauthn, restricted
 import logging
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -51,6 +51,7 @@ app.include_router(visitors.router)
 app.include_router(visit_requests.router)
 app.include_router(audit.router)
 app.include_router(analytics.router)
+app.include_router(restricted.router)
 
 
 @app.get("/health", tags=["Health"])
