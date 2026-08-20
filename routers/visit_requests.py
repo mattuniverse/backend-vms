@@ -150,8 +150,66 @@ async def approve_or_reject(
                 status       = "Rejected",
                 extra_note   = note,
             ))
+    # If Admin granted restricted area access at approval time, create the grant
+    if body.action == ApprovalStatus.approved and body.restricted_area_id:
+        try:
+            area_id = uuid.UUID(str(body.restricted_area_id))
+            # Only create if not already granted
+            exists = await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM restricted_access WHERE visit_request_id=$1 AND restricted_area_id=$2)",
+                request_id, area_id,
+            )
+            if not exists:
+                await conn.execute(
+                    """
+                    INSERT INTO restricted_access
+                      (visit_request_id, restricted_area_id, restricted_badge, approved_by, approved_at)
+                    VALUES ($1, $2, $3, $4, NOW())
+                    """,
+                    request_id,
+                    area_id,
+                    "",   # badge assigned later by guard
+                    uuid.UUID(str(current["id"])),
+                )
+                area = await conn.fetchrow("SELECT name FROM restricted_areas WHERE id=$1", area_id)
+                await write_audit(
+                    conn, "Restricted Access Granted", actor=current,
+                    visit_request_id=request_id,
+                    visitor_name=row["visitor_name"],
+                    detail=f"Area: {area['name']} (granted at approval)",
+                )
+        except Exception as e:
+            # Non-fatal — approval still succeeds even if restricted grant fails
+            import logging
+            logging.getLogger(__name__).warning("Failed to grant restricted access: %s", e)
+
     await write_audit(conn, event, actor=current, visit_request_id=request_id, visitor_name=row["visitor_name"])
     return {"id": request_id, "approval_status": body.action.value}
+
+
+@router.get("/{request_id}/restricted-access")
+async def get_restricted_access(
+    request_id: uuid.UUID,
+    current:    dict               = Depends(get_current_user),
+    conn:       asyncpg.Connection = Depends(get_conn),
+):
+    """Guard calls this after QR scan to check if visitor has restricted area access pre-approved.
+    Returns the access grant + area info if exists, or None. Visitor never sees this endpoint."""
+    row = await conn.fetchrow(
+        """
+        SELECT rac.*, ra.name AS area_name, ra.floor
+        FROM   restricted_access rac
+        JOIN   restricted_areas ra ON ra.id = rac.restricted_area_id
+        WHERE  rac.visit_request_id = $1
+          AND  rac.status IN ('Pending', 'Badge Issued')
+        ORDER  BY rac.created_at DESC
+        LIMIT  1
+        """,
+        request_id,
+    )
+    if not row:
+        return {"has_restricted_access": False}
+    return {"has_restricted_access": True, **dict(row)}
 
 
 @router.patch("/{request_id}/check-in")
