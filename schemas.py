@@ -77,5 +77,8 @@ class CheckInIn(BaseModel):
 
 
 class ApprovalIn(BaseModel):
-    action:           ApprovalStatus
-    rejection_reason: Optional[str] = None
+    action:              ApprovalStatus
+    rejection_reason:    Optional[str]       = None
+    # Optional: Admin can grant restricted area access at approval time.
+    # The visitor never sees this — only the guard sees it after QR scan.
+    restricted_area_id:  Optional[str]       = None
